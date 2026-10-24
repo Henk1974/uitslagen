@@ -1,4 +1,10 @@
 @echo off
+if /i "%~1"=="/console" goto run
+if /i not "%~1"=="/background" (
+    wscript.exe //B //NoLogo "%~dp0uitslagen-verborgen.vbs"
+    exit /b
+)
+:run
 cd /d "%~dp0"
 set "BACKGROUND=%~1"
 py -m pip install --user requests beautifulsoup4 pandas openpyxl

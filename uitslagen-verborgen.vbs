@@ -2,7 +2,7 @@ Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 
 batchPath = fso.BuildPath(fso.GetParentFolderName(WScript.ScriptFullName), "uitslagen.bat")
-exitCode = shell.Run("""" & batchPath & """ /background", 0, True)
+exitCode = shell.Run("""" & batchPath & """ /background", 7, True)
 
 If exitCode <> 0 Then
     MsgBox "Uitslagen is niet goed gestart (foutcode " & exitCode & ")." & vbCrLf & _

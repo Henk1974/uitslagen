@@ -1,6 +1,7 @@
 import re
 import threading
 import tkinter as tk
+from datetime import date
 from tkinter import filedialog, messagebox, ttk
 from urllib.parse import urlparse
 import pandas as pd
@@ -24,7 +25,7 @@ def haal_identifier_op(value: str) -> str:
        raise ValueError("De uitslagcode bevat ongeldige tekens.")
    return identifier
 
-def lees_uitslag(identifier: str) -> pd.DataFrame:
+def haal_pagina_op(identifier: str) -> BeautifulSoup:
     url = f"https://uitslagen.nl/{identifier}"
     response = requests.get(
         url,
@@ -32,7 +33,85 @@ def lees_uitslag(identifier: str) -> pd.DataFrame:
         timeout=30,
     )
     response.raise_for_status()
-    soup = BeautifulSoup(response.content, "html.parser")
+    return BeautifulSoup(response.content, "html.parser")
+
+
+def haal_evenementgegevens_op(soup: BeautifulSoup) -> dict[str, str]:
+    gegevens = {}
+    titel = soup.select_one(".uitslagencontainer h1")
+    if titel:
+        naam = re.sub(
+            r"^Uitslagenlijst\s+",
+            "",
+            titel.get_text(" ", strip=True),
+            flags=re.IGNORECASE,
+        ).strip()
+        if naam:
+            gegevens["run"] = naam
+
+    info = soup.select(".uitslagencontainer .event-info > span")
+    if info:
+        plaats = info[0].get_text(" ", strip=True).replace("\u2022", "")
+        plaats = re.sub(r"\s+[A-Z]{3}$", "", plaats).strip()
+        if plaats:
+            gegevens["plaats"] = plaats
+    if len(info) > 1:
+        datum_tekst = info[1].get_text(" ", strip=True)
+        match = re.search(
+            r"(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s+(\d{4})",
+            datum_tekst,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            maanden = {
+                "januari": 1,
+                "februari": 2,
+                "maart": 3,
+                "april": 4,
+                "mei": 5,
+                "juni": 6,
+                "juli": 7,
+                "augustus": 8,
+                "september": 9,
+                "oktober": 10,
+                "november": 11,
+                "december": 12,
+            }
+            maand = maanden.get(match.group(2).casefold())
+            if maand:
+                gegevens["datum"] = date(
+                    int(match.group(3)),
+                    maand,
+                    int(match.group(1)),
+                ).isoformat()
+    return gegevens
+
+
+def veilige_bestandsnaam(waarde: str) -> str:
+    waarde = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", waarde)
+    waarde = re.sub(r"\s+", "_", waarde).strip(" ._")
+    return waarde
+
+
+def maak_bestandsnaam(
+    identifier: str,
+    gegevens: dict[str, str],
+    extensie: str,
+) -> str:
+    onderdelen = [
+        veilige_bestandsnaam(gegevens[sleutel])
+        for sleutel in ("run", "plaats", "datum")
+        if gegevens.get(sleutel)
+    ]
+    onderdelen.append(veilige_bestandsnaam(identifier))
+    return f"uitslagen_{'_'.join(onderdelen)}{extensie}"
+
+
+def lees_uitslag(identifier: str) -> pd.DataFrame:
+    return parseer_uitslag(identifier, haal_pagina_op(identifier))
+
+
+def parseer_uitslag(identifier: str, soup: BeautifulSoup) -> pd.DataFrame:
     resultaten = []
 
     for tabel in soup.select(".table.uitslagen"):
@@ -183,41 +262,63 @@ class App(tk.Tk):
        except ValueError as exc:
            messagebox.showerror("Invoer controleren", str(exc))
            return
-       if self.format_var.get().startswith("Excel"):
-           path = filedialog.asksaveasfilename(
-               title="Excel-bestand opslaan",
-               defaultextension=".xlsx",
-               initialfile=f"uitslagen_{identifier}.xlsx",
-               filetypes=[("Excel-bestand", ".xlsx")],
-           )
-       else:
-           path = filedialog.asksaveasfilename(
-               title="CSV-bestand opslaan",
-               defaultextension=".csv",
-               initialfile=f"uitslagen_{identifier}.csv",
-               filetypes=[("CSV-bestand", ".csv")],
-           )
-       if not path:
-           return
        self.run_button.config(state="disabled")
        self.status_var.set("Uitslagen ophalen… even geduld.")
        threading.Thread(
            target=self.verwerk,
-           args=(identifier, path),
+           args=(identifier,),
            daemon=True,
        ).start()
 
-   def verwerk(self, identifier, path):
+   def verwerk(self, identifier):
        try:
-           df = lees_uitslag(identifier)
+           soup = haal_pagina_op(identifier)
+           df = parseer_uitslag(identifier, soup)
+           gegevens = haal_evenementgegevens_op(soup)
+           self.after(
+               0,
+               lambda: self.kies_bestand(identifier, df, gegevens),
+           )
+       except requests.RequestException as exc:
+           bericht = f"De website kon niet worden opgehaald: {exc}"
+           self.after(0, lambda: self.fout(bericht))
+       except Exception as exc:
+           bericht = str(exc)
+           self.after(0, lambda: self.fout(bericht))
+
+   def kies_bestand(self, identifier, df, gegevens):
+       if self.format_var.get().startswith("Excel"):
+           extensie = ".xlsx"
+           bestandstype = ("Excel-bestand", ".xlsx")
+           titel = "Excel-bestand opslaan"
+       else:
+           extensie = ".csv"
+           bestandstype = ("CSV-bestand", ".csv")
+           titel = "CSV-bestand opslaan"
+       path = filedialog.asksaveasfilename(
+           title=titel,
+           defaultextension=extensie,
+           initialfile=maak_bestandsnaam(identifier, gegevens, extensie),
+           filetypes=[bestandstype],
+       )
+       if not path:
+           self.run_button.config(state="normal")
+           self.status_var.set("Klaar.")
+           return
+       self.status_var.set("Bestand opslaan… even geduld.")
+       threading.Thread(
+           target=self.sla_op,
+           args=(df, path),
+           daemon=True,
+       ).start()
+
+   def sla_op(self, df, path):
+       try:
            if path.lower().endswith(".csv"):
                df.to_csv(path, index=False, encoding="utf-8-sig")
            else:
                df.to_excel(path, index=False)
            self.after(0, lambda: self.klaar(path, len(df)))
-       except requests.RequestException as exc:
-           bericht = f"De website kon niet worden opgehaald: {exc}"
-           self.after(0, lambda: self.fout(bericht))
        except Exception as exc:
            bericht = str(exc)
            self.after(0, lambda: self.fout(bericht))
