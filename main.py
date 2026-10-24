@@ -25,64 +25,111 @@ def haal_identifier_op(value: str) -> str:
    return identifier
 
 def lees_uitslag(identifier: str) -> pd.DataFrame:
-   url = f"https://uitslagen.nl/{identifier}"
-   response = requests.get(
-       url,
-       headers={"User-Agent": "Mozilla/5.0 (compatible; UitslagenScraper/1.0)"},
-       timeout=30,
-   )
-   response.raise_for_status()
-   soup = BeautifulSoup(response.text, "html.parser")
-   regels = [tekst.strip() for tekst in soup.stripped_strings if tekst.strip()]
-   resultaten = []
-   categorie = None
-   i = 0
-   while i < len(regels):
-       tekst = regels[i]
-       # Categorieën zoals HEREN, 3 KM of DAMES, 3 KM
-       if tekst.upper().startswith(("HEREN", "DAMES")):
-           categorie = tekst
-           i += 1
-           continue
-       # Sla de kolomkop over
-       if tekst.casefold() == "tijd":
-           i += 1
-           continue
-       # Verwachte volgorde per deelnemer: plaats, naam, woonplaats/vereniging, tijd
-       if categorie and tekst.isdigit():
-           try:
-               plaats = int(tekst)
-               naam = regels[i + 1]
-               woonplaats = regels[i + 2]
-               tijd = regels[i + 3]
-               if ":" in tijd:
-                   resultaat = {
-                       "UitslagID": identifier,
-                       "Categorie": categorie,
-                       "Gender": None,
-                       "Afstand": None,
-                       "Plaats": plaats,
-                       "Naam": naam,
-                       "Woonplaats/Vereniging": woonplaats,
-                       "Tijd": tijd,
-                   }
-                   if "," in categorie:
-                       gender, afstand = categorie.split(",", 1)
-                       resultaat["Gender"] = gender.strip()
-                       resultaat["Afstand"] = afstand.strip()
-                   resultaten.append(resultaat)
-               i += 4
-               continue
-           except (IndexError, ValueError):
-               pass
-       i += 1
-   df = pd.DataFrame(resultaten)
-   if df.empty:
-       raise ValueError(
-           "Er zijn geen uitslagen herkend. Controleer de code/URL. "
-           "De pagina-indeling kan gewijzigd zijn of deze uitslag kan een ander format gebruiken."
-       )
-   return df
+    url = f"https://uitslagen.nl/{identifier}"
+    response = requests.get(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; UitslagenScraper/1.0)"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    soup = BeautifulSoup(response.content, "html.parser")
+    resultaten = []
+
+    for tabel in soup.select(".table.uitslagen"):
+        caption = tabel.select_one(".caption")
+        if caption is None:
+            continue
+        categorie = caption.get_text(" ", strip=True)
+        gender, afstand = (None, None)
+        if "," in categorie:
+            gender, afstand = (deel.strip() for deel in categorie.split(",", 1))
+
+        for rij in tabel.find_all("div", class_="tr", recursive=False):
+            cellen = rij.find_all("div", class_="td", recursive=False)
+            plaats_element = rij.select_one(".td.bold")
+            if not cellen or plaats_element is None:
+                continue
+            plaats_tekst = plaats_element.get_text(" ", strip=True)
+            if not plaats_tekst.isdigit():
+                continue
+
+            naam_element = rij.select_one(".td .naam")
+            woonplaats_element = rij.select_one(".td .wpl")
+            tijden = [
+                cel.get_text(" ", strip=True)
+                for cel in rij.select(".td.tijd")
+            ]
+            bruto = tijden[0] if tijden else None
+            netto = tijden[1] if len(tijden) > 1 else None
+            resultaten.append({
+                "UitslagID": identifier,
+                "Categorie": categorie,
+                "Gender": gender,
+                "Afstand": afstand,
+                "Plaats": int(plaats_tekst),
+                "Naam": (
+                    naam_element.get_text(" ", strip=True)
+                    if naam_element else ""
+                ),
+                "Woonplaats/Vereniging": (
+                    woonplaats_element.get_text(" ", strip=True)
+                    if woonplaats_element else ""
+                ),
+                "Bruto": bruto,
+                "Netto": netto,
+                "Tijd": netto or bruto,
+            })
+
+    if not soup.select(".table.uitslagen"):
+        regels = [tekst.strip() for tekst in soup.stripped_strings if tekst.strip()]
+        categorie = None
+        i = 0
+        while i < len(regels):
+            tekst = regels[i]
+            if tekst.upper().startswith(("HEREN", "DAMES")):
+                categorie = tekst
+                i += 1
+                continue
+            if tekst.casefold() == "tijd":
+                i += 1
+                continue
+            if categorie and tekst.isdigit():
+                try:
+                    plaats = int(tekst)
+                    naam = regels[i + 1]
+                    woonplaats = regels[i + 2]
+                    tijd = regels[i + 3]
+                    if ":" in tijd:
+                        gender, afstand = (None, None)
+                        if "," in categorie:
+                            gender, afstand = (
+                                deel.strip() for deel in categorie.split(",", 1)
+                            )
+                        resultaten.append({
+                            "UitslagID": identifier,
+                            "Categorie": categorie,
+                            "Gender": gender,
+                            "Afstand": afstand,
+                            "Plaats": plaats,
+                            "Naam": naam,
+                            "Woonplaats/Vereniging": woonplaats,
+                            "Bruto": None,
+                            "Netto": None,
+                            "Tijd": tijd,
+                        })
+                    i += 4
+                    continue
+                except (IndexError, ValueError):
+                    pass
+            i += 1
+
+    df = pd.DataFrame(resultaten)
+    if df.empty:
+        raise ValueError(
+            "Er zijn geen uitslagen herkend. Controleer de code/URL. "
+            "De pagina-indeling kan gewijzigd zijn of deze uitslag kan een ander format gebruiken."
+        )
+    return df
 
 class App(tk.Tk):
    def __init__(self):

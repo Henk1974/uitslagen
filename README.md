@@ -16,6 +16,7 @@ gebruiker. Python moet beschikbaar zijn via het `py`-commando.
 ## Gebruik
 
 Vul een uitslagcode of volledige URL van Uitslagen.nl in, kies Excel of CSV en
-selecteer waar het bestand moet worden opgeslagen. De export bevat onder meer
-de categorie en, wanneer de categorie een komma bevat, aparte velden voor
-gender en afstand.
+selecteer waar het bestand moet worden opgeslagen. Resultaten uit meerdere
+tabellen worden samengevoegd; de tabelcaption wordt gebruikt als categorie en
+wordt bij een komma opgesplitst in gender/categorie en afstand. De export bevat
+ook bruto- en nettotijd wanneer de pagina die vermeldt.
