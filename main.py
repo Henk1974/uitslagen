@@ -1,9 +1,14 @@
+import argparse
+import html
+import io
 import re
 import threading
 import tkinter as tk
 from datetime import date
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from tkinter import filedialog, messagebox, ttk
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, quote, urlparse, urlsplit
+import webbrowser
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
@@ -343,5 +348,211 @@ class App(tk.Tk):
        self.status_var.set("Export mislukt.")
        messagebox.showerror("Export mislukt", bericht)
 
+
+WEB_PAGINA = """<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Uitslagen.nl exporteren</title>
+  <style>
+    body { background: #f2f5f8; color: #18212b; font: 16px Segoe UI, sans-serif; margin: 0; }
+    main { background: white; border-radius: 12px; box-shadow: 0 8px 28px #18212b18;
+      box-sizing: border-box; margin: 10vh auto; max-width: 620px; padding: 32px; width: calc(100% - 32px); }
+    h1 { font-size: 1.6rem; margin-top: 0; }
+    label { display: block; font-weight: 600; margin: 20px 0 8px; }
+    input, select, button { box-sizing: border-box; font: inherit; padding: 10px 12px; }
+    input, select { border: 1px solid #aab4bf; border-radius: 6px; width: 100%; }
+    button { background: #146c43; border: 0; border-radius: 6px; color: white; cursor: pointer; margin-top: 20px; }
+    button.stop { background: #5b6570; float: right; }
+    .error { background: #fff0ef; border-left: 4px solid #c4332a; padding: 12px; }
+  </style>
+</head>
+<body><main>
+  <h1>Uitslagen.nl exporteren</h1>
+  <p>Vul een uitslagcode of volledige Uitslagen.nl-URL in. Je export wordt daarna gedownload.</p>
+  {error}
+  <form action="/export" method="post">
+    <label for="identifier">Uitslagcode of URL</label>
+    <input id="identifier" name="identifier" required value="{identifier}">
+    <label for="format">Bestandsformaat</label>
+    <select id="format" name="format">
+      <option value="xlsx">Excel (.xlsx)</option>
+      <option value="csv">CSV (.csv)</option>
+    </select>
+    <button type="submit">Uitslagen ophalen en downloaden</button>
+  </form>
+  <form action="/stop" method="post">
+    <button class="stop" type="submit">Lokale server stoppen</button>
+  </form>
+</main></body></html>"""
+
+
+def maak_web_pagina(
+    identifier: str = "https://uitslagen.nl/2026101900861",
+    error: str = "",
+) -> bytes:
+    content = WEB_PAGINA.replace(
+        "{identifier}",
+        html.escape(identifier, quote=True),
+    ).replace(
+        "{error}",
+        f'<p class="error">{html.escape(error)}</p>' if error else "",
+    )
+    return content.encode("utf-8")
+
+
+class WebHandler(BaseHTTPRequestHandler):
+    server_version = "UitslagenLocal/1.0"
+
+    def _is_local_request(self) -> bool:
+        host = self.headers.get("Host", "")
+        try:
+            if host and urlsplit(f"//{host}").hostname not in {
+                "localhost",
+                "127.0.0.1",
+            }:
+                return False
+        except ValueError:
+            return False
+
+        origin = self.headers.get("Origin")
+        if origin:
+            try:
+                if urlsplit(origin).hostname not in {"localhost", "127.0.0.1"}:
+                    return False
+            except ValueError:
+                return False
+        return True
+
+    def _send_html(self, status: int, content: bytes) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(content)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(content)
+
+    def do_GET(self) -> None:
+        if not self._is_local_request():
+            self.send_error(403)
+        elif self.path == "/":
+            self._send_html(200, maak_web_pagina())
+        else:
+            self.send_error(404)
+
+    def do_POST(self) -> None:
+        if not self._is_local_request():
+            self.send_error(403)
+            return
+
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self.send_error(400, "Ongeldige aanvraag.")
+            return
+        if content_length < 0 or content_length > 4096:
+            self.send_error(400, "Ongeldige aanvraag.")
+            return
+
+        form = parse_qs(
+            self.rfile.read(content_length).decode("utf-8"),
+            keep_blank_values=True,
+        )
+        if self.path == "/stop":
+            self._send_html(
+                200,
+                b"<!doctype html><html lang='nl'><meta charset='utf-8'>"
+                b"<title>Server gestopt</title><p>De lokale server wordt gestopt. "
+                b"Je kunt dit tabblad sluiten.</p></html>",
+            )
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+            return
+        if self.path != "/export":
+            self.send_error(404)
+            return
+        if content_length == 0:
+            self.send_error(400, "Ongeldige aanvraag.")
+            return
+
+        identifier_input = form.get("identifier", [""])[0]
+        export_format = form.get("format", [""])[0]
+        try:
+            identifier = haal_identifier_op(identifier_input)
+            if export_format not in {"xlsx", "csv"}:
+                raise ValueError("Kies Excel of CSV als bestandsformaat.")
+            soup = haal_pagina_op(identifier)
+            df = parseer_uitslag(identifier, soup)
+            gegevens = haal_evenementgegevens_op(soup)
+        except ValueError as exc:
+            self._send_html(
+                400,
+                maak_web_pagina(identifier_input, str(exc)),
+            )
+            return
+        except requests.RequestException as exc:
+            self._send_html(
+                502,
+                maak_web_pagina(
+                    identifier_input,
+                    f"De website kon niet worden opgehaald: {exc}",
+                ),
+            )
+            return
+
+        extension = f".{export_format}"
+        filename = maak_bestandsnaam(identifier, gegevens, extension)
+        output = io.BytesIO()
+        if export_format == "csv":
+            output.write(df.to_csv(index=False).encode("utf-8-sig"))
+            content_type = "text/csv; charset=utf-8"
+        else:
+            df.to_excel(output, index=False)
+            content_type = (
+                "application/vnd.openxmlformats-officedocument."
+                "spreadsheetml.sheet"
+            )
+
+        data = output.getvalue()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header(
+            "Content-Disposition",
+            f'attachment; filename="uitslagen_export{extension}"; '
+            f"filename*=UTF-8''{quote(filename)}",
+        )
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(data)
+
+
+def start_webapp() -> None:
+    server = ThreadingHTTPServer(("127.0.0.1", 0), WebHandler)
+    url = f"http://127.0.0.1:{server.server_port}/"
+    print(f"Uitslagen is gestart op {url}. Sluit af via de knop in de pagina.")
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    try:
+        if not webbrowser.open(url):
+            server.shutdown()
+            raise RuntimeError("De browser kon niet automatisch worden geopend.")
+        server_thread.join()
+    except KeyboardInterrupt:
+        server.shutdown()
+    finally:
+        server.server_close()
+
+
 if __name__ == "__main__":
-    App().mainloop()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--web",
+        action="store_true",
+        help="Start de lokale webversie in plaats van de desktopapp.",
+    )
+    args = parser.parse_args()
+    if args.web:
+        start_webapp()
+    else:
+        App().mainloop()

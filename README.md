@@ -1,9 +1,10 @@
 # Uitslagen.nl exporteren
 
 Deze Windows-app haalt uitslagen op van Uitslagen.nl en exporteert ze naar
-Excel (`.xlsx`) of CSV (`.csv`).
+Excel (`.xlsx`) of CSV (`.csv`). Je kunt de desktopapp of de lokale webversie
+gebruiken.
 
-## Starten
+## Desktopapp starten
 
 - Dubbelklik op `uitslagen-verborgen.vbs` om de app te starten met het
   opdrachtpromptvenster geminimaliseerd.
@@ -15,6 +16,23 @@ Excel (`.xlsx`) of CSV (`.csv`).
 
 De batchfile installeert zo nodig de vereiste Python-pakketten voor de huidige
 gebruiker. Python moet beschikbaar zijn via het `py`-commando.
+
+## Lokale webversie starten
+
+- Dubbelklik op `uitslagen-web.vbs`. De lokale server start en de webpagina
+  opent automatisch in je browser.
+- Je kunt ook `uitslagen-web.bat` starten om eventuele foutmeldingen in het
+  opdrachtpromptvenster te zien.
+- Vul de uitslagcode of URL in en kies Excel of CSV. De browser downloadt het
+  exportbestand.
+- Klik op **Lokale server stoppen** in de webpagina wanneer je klaar bent.
+
+De server is alleen bereikbaar vanaf deze computer; dit is geen website die
+vanaf internet toegankelijk is. De webversie gebruikt dezelfde Python-installatie
+en pakketten als de desktopapp. De bestaande `uitslagen.bat` en de desktopapp
+blijven gewoon werken. Een losse HTML-snelkoppeling kan de Python-server niet
+starten; gebruik daarom `uitslagen-web.vbs` als startbestand. Je kunt daarvan
+eventueel zelf een snelkoppeling op het bureaublad maken.
 
 ## Gebruik
 
