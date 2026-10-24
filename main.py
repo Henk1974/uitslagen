@@ -245,10 +245,17 @@ class App(tk.Tk):
            width=16,
        )
        self.format_box.pack(side="left", padx=(8, 0))
+       buttons = ttk.Frame(frame)
+       buttons.pack(fill="x")
        self.run_button = ttk.Button(
-           frame, text="Uitslagen ophalen en opslaan", command=self.start
+           buttons, text="Uitslagen ophalen en opslaan", command=self.start
        )
-       self.run_button.pack(anchor="w")
+       self.run_button.pack(side="left")
+       ttk.Button(
+           buttons,
+           text="Stoppen",
+           command=self.destroy,
+       ).pack(side="right")
        self.status_var = tk.StringVar(value="Klaar.")
        ttk.Label(
            frame,

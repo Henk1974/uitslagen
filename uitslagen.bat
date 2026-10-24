@@ -1,7 +1,7 @@
 @echo off
 if /i "%~1"=="/console" goto run
 if /i not "%~1"=="/background" (
-    wscript.exe //B //NoLogo "%~dp0uitslagen-verborgen.vbs"
+    start "" wscript.exe //B //NoLogo "%~dp0uitslagen-verborgen.vbs"
     exit /b
 )
 :run
