@@ -40,9 +40,11 @@ def lees_uitslag(identifier: str) -> pd.DataFrame:
         if caption is None:
             continue
         categorie = caption.get_text(" ", strip=True)
-        gender, afstand = (None, None)
+        discipline, afstand = (None, None)
         if "," in categorie:
-            gender, afstand = (deel.strip() for deel in categorie.split(",", 1))
+            discipline, afstand = (
+                deel.strip() for deel in categorie.split(",", 1)
+            )
 
         for rij in tabel.find_all("div", class_="tr", recursive=False):
             cellen = rij.find_all("div", class_="td", recursive=False)
@@ -64,7 +66,7 @@ def lees_uitslag(identifier: str) -> pd.DataFrame:
             resultaten.append({
                 "UitslagID": identifier,
                 "Categorie": categorie,
-                "Gender": gender,
+                "Discipline": discipline,
                 "Afstand": afstand,
                 "Plaats": int(plaats_tekst),
                 "Naam": (
@@ -100,15 +102,15 @@ def lees_uitslag(identifier: str) -> pd.DataFrame:
                     woonplaats = regels[i + 2]
                     tijd = regels[i + 3]
                     if ":" in tijd:
-                        gender, afstand = (None, None)
+                        discipline, afstand = (None, None)
                         if "," in categorie:
-                            gender, afstand = (
+                            discipline, afstand = (
                                 deel.strip() for deel in categorie.split(",", 1)
                             )
                         resultaten.append({
                             "UitslagID": identifier,
                             "Categorie": categorie,
-                            "Gender": gender,
+                            "Discipline": discipline,
                             "Afstand": afstand,
                             "Plaats": plaats,
                             "Naam": naam,
