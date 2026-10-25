@@ -1,6 +1,6 @@
 @echo off
 cd /d "%~dp0"
-py -m pip install --user requests beautifulsoup4 pandas openpyxl
+py -c "import requests, bs4, pandas, openpyxl" 2>nul || py -m pip install --user -r requirements.txt
 if errorlevel 1 (
     echo.
     echo Installatie van de benodigde Python-pakketten is mislukt.
