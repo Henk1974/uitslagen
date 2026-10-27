@@ -4,6 +4,22 @@ Deze Windows-app haalt uitslagen op van Uitslagen.nl en exporteert ze naar
 Excel (`.xlsx`) of CSV (`.csv`). Je kunt de desktopapp of de lokale webversie
 gebruiken.
 
+> **Let op: deze app werkt alleen op Windows** (Windows 10 of 11, op een pc of
+> laptop). Op een Mac, Chromebook, Linux-computer, tablet of telefoon werkt de
+> installer niet.
+
+## Installeren
+
+Download `Uitslagen-installatie.exe` via de
+[nieuwste release](https://github.com/Henk1974/uitslagen/releases/latest) en
+dubbelklik erop. Python is daarvoor niet nodig. Toont Windows de melding
+*"Windows heeft uw pc beschermd"*, klik dan op **Meer informatie** en daarna
+op **Toch uitvoeren**. Na de installatie start je de app via **Uitslagen** op
+het bureaublad of in het startmenu.
+
+De onderstaande startbestanden zijn bedoeld voor wie de app vanuit de
+broncode draait.
+
 ## Desktopapp starten
 
 - Dubbelklik op `uitslagen-verborgen.vbs` om de app te starten met het
