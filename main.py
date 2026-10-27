@@ -457,7 +457,7 @@ WEB_PAGINA = r"""<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Uitslagen exporteren</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23146c43'/%3E%3Cpath d='M9 22V13M16 22V9M23 22v-6' stroke='white' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23146c43'/%3E%3Cg stroke='white' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round' fill='none'%3E%3Cpath d='M19 10.5L15 17.5M18.4 11.6L22 14.2L25 12M18.4 11.6L14 12.6L11.5 16M15 17.5L20 20.5L19 26.5M15 17.5L12.5 22.5L7.5 23M3.5 11h4M2.5 15.5H6'/%3E%3C/g%3E%3Ccircle cx='20.5' cy='6.5' r='2.7' fill='white'/%3E%3C/svg%3E">
 <style>
 :root {
   --bg: #f3f5f7; --surface: #ffffff; --surface-2: #f7f9fa; --border: #dde3e8;
@@ -548,7 +548,7 @@ footer { color: var(--muted); font-size: .8125rem; margin-top: 24px; text-align:
   <header>
     <div class="brand">
       <div class="logo" aria-hidden="true">
-        <svg width="20" height="20" viewBox="0 0 32 32"><path d="M9 24V14M16 24V8M23 24v-7" stroke="white" stroke-width="3.6" stroke-linecap="round"/></svg>
+        <svg width="26" height="26" viewBox="0 0 32 32"><path d="M19 10.5L15 17.5M18.4 11.6L22 14.2L25 12M18.4 11.6L14 12.6L11.5 16M15 17.5L20 20.5L19 26.5M15 17.5L12.5 22.5L7.5 23M3.5 11h4M2.5 15.5H6" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="20.5" cy="6.5" r="2.7" fill="white"/></svg>
       </div>
       <div>
         <h1>Uitslagen exporteren</h1>

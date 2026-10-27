@@ -19,6 +19,7 @@ OutputBaseFilename=Uitslagen-installatie
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=uitslagen.ico
 UninstallDisplayIcon={app}\Uitslagen.exe
 
 [Languages]

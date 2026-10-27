@@ -3,7 +3,7 @@ rem Bouwt dist\Uitslagen\Uitslagen.exe en daarna installer\Uitslagen-installatie
 rem Vereist: py -m pip install --user pyinstaller  en  winget install JRSoftware.InnoSetup
 cd /d "%~dp0"
 
-py -m PyInstaller --noconfirm --clean --windowed --name Uitslagen uitslagen_app.py
+py -m PyInstaller --noconfirm --clean --windowed --icon uitslagen.ico --name Uitslagen uitslagen_app.py
 if errorlevel 1 goto fout
 
 set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
