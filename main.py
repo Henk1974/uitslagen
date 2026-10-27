@@ -149,9 +149,9 @@ def maak_bestandsnaam(
 
 def splits_categorie(categorie: str) -> tuple[str | None, str | None]:
     if "," not in categorie:
-        return None, None
-    discipline, afstand = (deel.strip() for deel in categorie.split(",", 1))
-    return discipline, afstand
+        return categorie.strip() or None, None
+    klasse, afstand = (deel.strip() for deel in categorie.split(",", 1))
+    return klasse, afstand
 
 
 def lees_uitslag(identifier: str) -> pd.DataFrame:
@@ -166,7 +166,7 @@ def parseer_uitslag(identifier: str, soup: BeautifulSoup) -> pd.DataFrame:
         if caption is None:
             continue
         categorie = caption.get_text(" ", strip=True)
-        discipline, afstand = splits_categorie(categorie)
+        klasse, afstand = splits_categorie(categorie)
 
         for rij in tabel.find_all("div", class_="tr", recursive=False):
             cellen = rij.find_all("div", class_="td", recursive=False)
@@ -188,7 +188,7 @@ def parseer_uitslag(identifier: str, soup: BeautifulSoup) -> pd.DataFrame:
             resultaten.append({
                 "UitslagID": identifier,
                 "Categorie": categorie,
-                "Discipline": discipline,
+                "Klasse": klasse,
                 "Afstand": afstand,
                 "Plaats": int(plaats_tekst),
                 "Naam": (
@@ -224,11 +224,11 @@ def parseer_uitslag(identifier: str, soup: BeautifulSoup) -> pd.DataFrame:
                     woonplaats = regels[i + 2]
                     tijd = regels[i + 3]
                     if ":" in tijd:
-                        discipline, afstand = splits_categorie(categorie)
+                        klasse, afstand = splits_categorie(categorie)
                         resultaten.append({
                             "UitslagID": identifier,
                             "Categorie": categorie,
-                            "Discipline": discipline,
+                            "Klasse": klasse,
                             "Afstand": afstand,
                             "Plaats": plaats,
                             "Naam": naam,
@@ -692,7 +692,7 @@ function toonResultaat() {
   for (const c of data.categorieen) sel.append(new Option(`${c.naam} (${nl(c.aantal)})`, c.naam));
   $("search").value = "";
 
-  const kolommen = ["Plaats", "Naam", "Woonplaats/Vereniging", "Categorie",
+  const kolommen = ["Plaats", "Naam", "Woonplaats/Vereniging", "Klasse", "Afstand",
     ...(data.heeftBrutoNetto ? ["Bruto", "Netto"] : ["Tijd"])];
   data.kolommen = kolommen;
   $("thead").replaceChildren(...kolommen.map((k) => {
@@ -942,7 +942,7 @@ class WebHandler(BaseHTTPRequestHandler):
         token = self.server.bewaar(
             {"identifier": identifier, "df": df, "gegevens": gegevens}
         )
-        kolommen = ["Plaats", "Naam", "Woonplaats/Vereniging", "Categorie", "Bruto", "Netto", "Tijd"]
+        kolommen = ["Plaats", "Naam", "Woonplaats/Vereniging", "Categorie", "Klasse", "Afstand", "Bruto", "Netto", "Tijd"]
         rijen = df[kolommen].astype(object).where(df[kolommen].notna(), None)
         self._send_json(200, {
             "token": token,

@@ -53,7 +53,7 @@ exportmoment.
 Vul een uitslagcode of volledige URL van Uitslagen.nl in, kies Excel of CSV en
 selecteer waar het bestand moet worden opgeslagen. Resultaten uit meerdere
 tabellen worden samengevoegd; de tabelcaption wordt gebruikt als categorie en
-wordt bij een komma opgesplitst in discipline en afstand. De export bevat
+wordt bij een komma opgesplitst in klasse en afstand. De export bevat
 ook bruto- en nettotijd wanneer de pagina die vermeldt. De voorgestelde
 bestandsnaam bevat de runnaam, plaats en datum van het evenement als die
 gegevens op de pagina beschikbaar zijn. Klik op **Stoppen** om de applicatie
